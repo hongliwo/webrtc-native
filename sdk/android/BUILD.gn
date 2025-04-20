@@ -261,6 +261,7 @@ if (is_android) {
     sources = [
       "api/org/webrtc/AddIceObserver.java",
       "api/org/webrtc/AudioProcessingFactory.java",
+      "api/org/webrtc/CustomAudioProcessingFactory.java",
       "api/org/webrtc/AudioSource.java",
       "api/org/webrtc/AudioTrack.java",
       "api/org/webrtc/CallSessionFileRotatingLogSink.java",
@@ -629,13 +630,28 @@ if (current_os == "linux" || is_android) {
   rtc_library("audio_jni") {
     visibility = [ "*" ]
     allow_poison = [ "audio_codecs" ]
-    sources = [ "src/jni/pc/audio.cc" ]
+    sources = [ 
+      "src/jni/pc/audio.cc",
+      "src/jni/custom_audio_processing.cc"
+    ]
 
     deps = [
       ":base_jni",
       "../../modules/audio_processing",
       "../../modules/audio_processing:api",
+      "//third_party/soundtouch:soundtouch_wrapper",
     ]
+
+    cflags = [
+      "-Wno-error",
+      "-Wno-error=undef",
+      "-Wno-error=header-hygiene",
+      "-Wno-error=exit-time-destructors",
+      "-Wno-error=global-constructors",
+      "-Wno-error=c++98-compat-extra-semi",
+      "-Wno-error=extra-semi",
+    ]
+
   }
 
   rtc_library("builtin_audio_codecs_jni") {
@@ -1535,6 +1551,7 @@ if (current_os == "linux" || is_android) {
     namespace = "webrtc::jni"
     jni_generator_include = "//sdk/android/src/jni/jni_generator_helper.h"
   }
+
 }
 
 if (is_android) {
