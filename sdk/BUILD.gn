@@ -1293,6 +1293,8 @@ if (is_ios || is_mac) {
           "objc/components/audio/RTCAudioDevice.h",
           "objc/components/audio/RTCAudioSession.h",
           "objc/components/audio/RTCAudioSessionConfiguration.h",
+          "objc/components/audio/RTCCustomAudioProcessing.h",
+          "objc/components/audio/RTCCustomAudioProcessing.mm",
           "objc/components/capturer/RTCCameraVideoCapturer.h",
           "objc/components/capturer/RTCFileVideoCapturer.h",
           "objc/components/network/RTCNetworkMonitor.h",
