@@ -58,6 +58,7 @@ int32_t Recorder::Start(const std::string& path) {
     const char* format_name = "matroska";
     avformat_alloc_output_context2(&context_, nullptr, format_name,
                                    path.c_str());
+	RTC_LOG(LS_INFO) << "Recorder::Start path: " << path;
     if (!context_) {
         RTC_LOG(LS_ERROR) << "Recorder::Start error, alloc context fail";
         return -11;
@@ -131,7 +132,25 @@ void Recorder::AddAudioFrame(int32_t sample_rate, int32_t channel_num,
         audio_codec_ = audio_codec;
         sample_rate_ = sample_rate;
         channel_num_ = channel_num;
-    }
+
+		const char* codec_name = "unknown";
+		switch (audio_codec) {
+			case AudioEncoder::CodecType::kOpus:
+				codec_name = "Opus";
+				break;
+			case AudioEncoder::CodecType::kPcmA:
+				codec_name = "PCM_ALAW";
+				break;
+			case AudioEncoder::CodecType::kAac:
+				codec_name = "AAC";
+				break;
+			default:
+				break;
+		}
+		RTC_LOG(LS_INFO) << "Recorder: Got first audio frame with codec: " << codec_name
+			<< ", sample rate: " << sample_rate
+			<< ", channels: " << channel_num;
+	}
 
     std::shared_ptr<Frame> media_frame(new Frame(frame, size));
 
@@ -218,7 +237,13 @@ void Recorder::openStreams() {
         switch (audio_codec_) {
             case AudioEncoder::CodecType::kOpus:
                 audio_codec_id = AV_CODEC_ID_OPUS;
-                break;
+				break;
+			case AudioEncoder::CodecType::kPcmA:
+				audio_codec_id = AV_CODEC_ID_PCM_ALAW;
+				break;
+			case AudioEncoder::CodecType::kAac:
+				audio_codec_id = AV_CODEC_ID_AAC;
+				break;
             default:
                 break;
         }
@@ -303,6 +328,10 @@ void Recorder::openStreams() {
                 // Mapping Family
                 par->extradata[18] = 0;
                 break;
+			case AV_CODEC_ID_PCM_ALAW:
+				par->bits_per_coded_sample = 8; 
+				par->block_align = channel_num_;
+				break;
             default:
                 break;
         }
