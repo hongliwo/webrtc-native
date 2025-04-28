@@ -325,6 +325,41 @@ if (is_ios || is_mac) {
         ]
       }
 
+      rtc_library("custom_audio_processing") {
+        sources = [
+          "objc/components/audio/RTCCustomAudioProcessing.h",
+          "objc/components/audio/RTCCustomAudioProcessing.mm",
+        ]
+
+        configs += [
+          "..:common_objc",
+          ":used_from_extension",
+        ]
+
+        public_configs = [ ":common_config_objc" ]
+
+        deps = [
+          ":base_objc",
+          "../api:libjingle_peerconnection_api",
+          "../api:scoped_refptr",
+          "../modules/audio_processing",
+          "../rtc_base:checks",
+          "../rtc_base:logging",
+          "../rtc_base:refcount",
+          "//third_party/soundtouch:soundtouch_wrapper",
+        ]
+
+        cflags = [
+          "-Wno-error",
+          "-Wno-error=undef",
+          "-Wno-error=header-hygiene",
+          "-Wno-error=exit-time-destructors",
+          "-Wno-error=global-constructors",
+          "-Wno-error=c++98-compat-extra-semi",
+          "-Wno-error=extra-semi",
+        ]
+      }
+
       rtc_library("audio_session_objc") {
         visibility = [ "*" ]
 
@@ -1294,7 +1329,6 @@ if (is_ios || is_mac) {
           "objc/components/audio/RTCAudioSession.h",
           "objc/components/audio/RTCAudioSessionConfiguration.h",
           "objc/components/audio/RTCCustomAudioProcessing.h",
-          "objc/components/audio/RTCCustomAudioProcessing.mm",
           "objc/components/capturer/RTCCameraVideoCapturer.h",
           "objc/components/capturer/RTCFileVideoCapturer.h",
           "objc/components/network/RTCNetworkMonitor.h",
@@ -1402,6 +1436,7 @@ if (is_ios || is_mac) {
           ":videocodec_objc",
           ":videotoolbox_objc",
           ":avconf_objc",
+          ":custom_audio_processing",
         ]
         if (rtc_ios_macos_use_opengl_rendering) {
           deps += [ ":opengl_ui_objc" ]

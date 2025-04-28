@@ -1,8 +1,27 @@
 #import "RTCCustomAudioProcessing.h"
-#import "SoundTouchWrapper.h"
 #import "modules/audio_processing/include/audio_processing.h"
 #import "rtc_base/ref_counted_object.h"
 #import "rtc_base/logging.h"
+
+#include <memory>
+#include <vector>
+#include <chrono>
+
+#include "modules/audio_processing/include/audio_processing.h"
+#include "modules/audio_processing/include/aec_dump.h"
+#include "api/audio/audio_frame.h"
+#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/logging.h"
+
+#include "third_party/soundtouch/wrapper/soundtouch_wrapper.h"
+#include "modules/audio_processing/include/audio_processing.h"
+#include "modules/audio_processing/include/audio_processing_statistics.h"
+
+// 添加命名空间使用声明
+using webrtc::ProcessingConfig;
+using webrtc::StreamConfig;
+using webrtc::AudioProcessingStats;
+using webrtc::SoundTouchWrapper;
 
 // 最大音轨数量
 constexpr int MAX_TRACKS = 16;
@@ -73,6 +92,10 @@ class CustomAudioProcessing : public webrtc::AudioProcessing {
 				const StreamConfig& input_config,
 				const StreamConfig& output_config,
 				int16_t* const dest) override {
+			//RTC_LOG(LS_WARNING) << "#### ProcessStream(int16): channels=" << input_config.num_channels()
+			//	<< ", frames=" << input_config.num_frames()
+			//	<< ", rate=" << input_config.sample_rate_hz();
+
 			// 检查输入参数
 			if (!src || !dest) {
 				return kNullPointerError;
@@ -118,7 +141,7 @@ class CustomAudioProcessing : public webrtc::AudioProcessing {
 				const StreamConfig& input_config,
 				const StreamConfig& output_config,
 				float* const* dest) override {
-			RTC_LOG(LS_INFO) << "ProcessStream(float): channels=" << input_config.num_channels()
+			RTC_LOG(LS_WARNING) << "#### ProcessStream(float): channels=" << input_config.num_channels()
 				<< ", frames=" << input_config.num_frames()
 				<< ", rate=" << input_config.sample_rate_hz();
 
@@ -256,6 +279,7 @@ class CustomAudioProcessing : public webrtc::AudioProcessing {
 
 		// 统计信息
 		AudioProcessingStats GetStatistics() override {
+			RTC_LOG(LS_WARNING) << "#### GetStatistics";
 			AudioProcessingStats stats;
 			// 可以根据需要设置统计信息
 			stats.voice_detected = absl::optional<bool>(false);
@@ -545,8 +569,9 @@ pitchSemi:(float)pitchSemi {
 
 #pragma mark - 原生模块访问
 
-- (rtc::scoped_refptr<webrtc::AudioProcessing>)nativeAudioProcessingModule {
-	return _audioProcessing;
+- (void*)nativeAudioProcessingModule {
+    //return _audioProcessing.get();
+    return &_audioProcessing;
 }
 
 @end

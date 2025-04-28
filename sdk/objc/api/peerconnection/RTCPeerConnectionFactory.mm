@@ -69,6 +69,7 @@
 }
 
 - (instancetype)init {
+	RTC_LOG(LS_WARNING) << "##### init will initWithNativeAudioEncoderFactory";
   return [self
       initWithNativeAudioEncoderFactory:webrtc::CreateBuiltinAudioEncoderFactory()
               nativeAudioDecoderFactory:webrtc::CreateBuiltinAudioDecoderFactory()
@@ -83,6 +84,7 @@
 - (instancetype)
     initWithEncoderFactory:(nullable id<RTC_OBJC_TYPE(RTCVideoEncoderFactory)>)encoderFactory
             decoderFactory:(nullable id<RTC_OBJC_TYPE(RTCVideoDecoderFactory)>)decoderFactory {
+  RTC_LOG(LS_WARNING) << "##### ";
   return [self initWithEncoderFactory:encoderFactory decoderFactory:decoderFactory audioDevice:nil];
 }
 
@@ -107,12 +109,49 @@
   } else {
     audio_device_module = [self audioDeviceModule];
   }
+  RTC_LOG(LS_WARNING) << "##### ";
   return [self initWithNativeAudioEncoderFactory:webrtc::CreateBuiltinAudioEncoderFactory()
                        nativeAudioDecoderFactory:webrtc::CreateBuiltinAudioDecoderFactory()
                        nativeVideoEncoderFactory:std::move(native_encoder_factory)
                        nativeVideoDecoderFactory:std::move(native_decoder_factory)
                                audioDeviceModule:audio_device_module.get()
                            audioProcessingModule:nullptr];
+#endif
+}
+
+- (instancetype)
+    initWithEncoderFactory:(nullable id<RTC_OBJC_TYPE(RTCVideoEncoderFactory)>)encoderFactory
+            decoderFactory:(nullable id<RTC_OBJC_TYPE(RTCVideoDecoderFactory)>)decoderFactory
+      audioProcessingModule:(nullable void *)audioProcessingModule {
+#ifdef HAVE_NO_MEDIA
+  return [self initWithNoMedia];
+#else
+  std::unique_ptr<webrtc::VideoEncoderFactory> native_encoder_factory;
+  std::unique_ptr<webrtc::VideoDecoderFactory> native_decoder_factory;
+  
+  if (encoderFactory) {
+    native_encoder_factory = webrtc::ObjCToNativeVideoEncoderFactory(encoderFactory);
+  }
+  
+  if (decoderFactory) {
+    native_decoder_factory = webrtc::ObjCToNativeVideoDecoderFactory(decoderFactory);
+  }
+  
+  rtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device_module = [self audioDeviceModule];
+  
+  rtc::scoped_refptr<webrtc::AudioProcessing> audio_processing = nullptr;
+  if (audioProcessingModule) {
+    // 转换 void* 指针为 rtc::scoped_refptr<webrtc::AudioProcessing>
+    audio_processing = *static_cast<rtc::scoped_refptr<webrtc::AudioProcessing>*>(audioProcessingModule);
+    RTC_LOG(LS_INFO) << "Using custom audio processing module";
+  }
+  
+  return [self initWithNativeAudioEncoderFactory:webrtc::CreateBuiltinAudioEncoderFactory()
+                       nativeAudioDecoderFactory:webrtc::CreateBuiltinAudioDecoderFactory()
+                       nativeVideoEncoderFactory:std::move(native_encoder_factory)
+                       nativeVideoDecoderFactory:std::move(native_decoder_factory)
+                               audioDeviceModule:audio_device_module.get()
+                           audioProcessingModule:audio_processing];
 #endif
 }
 
@@ -162,6 +201,7 @@
                                 audioDeviceModule:(webrtc::AudioDeviceModule *)audioDeviceModule
                             audioProcessingModule:
                                 (rtc::scoped_refptr<webrtc::AudioProcessing>)audioProcessingModule {
+	RTC_LOG(LS_WARNING) << "##### enter initWithNativeAudioEncoderFactory";
   return [self initWithNativeAudioEncoderFactory:audioEncoderFactory
                        nativeAudioDecoderFactory:audioDecoderFactory
                        nativeVideoEncoderFactory:std::move(videoEncoderFactory)
@@ -203,8 +243,10 @@
     media_deps.video_encoder_factory = std::move(videoEncoderFactory);
     media_deps.video_decoder_factory = std::move(videoDecoderFactory);
     if (audioProcessingModule) {
+      RTC_LOG(LS_WARNING) << "##### audioProcessingModule is not null";
       media_deps.audio_processing = std::move(audioProcessingModule);
     } else {
+      RTC_LOG(LS_WARNING) << "##### audioProcessingModule is null";
       media_deps.audio_processing = webrtc::AudioProcessingBuilder().Create();
     }
     media_deps.trials = dependencies.trials.get();
