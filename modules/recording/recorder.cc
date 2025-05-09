@@ -54,8 +54,29 @@ Recorder::Recorder(TaskQueueFactory* task_queue_factory)
 
 Recorder::~Recorder() { Stop(); }
 
+void printFFmpegInfo() {
+	RTC_LOG(LS_INFO) << "FFmpeg version: " 
+		<< av_version_info();
+
+	RTC_LOG(LS_INFO) << "FFmpeg configuration: " 
+		<< avformat_configuration();
+
+	RTC_LOG(LS_INFO) << "FFmpeg license: " 
+		<< avformat_license();
+
+	// 打印所有支持的格式
+	//RTC_LOG(LS_INFO) << "Supported formats:";
+	//AVOutputFormat* fmt = nullptr;
+	//while ((fmt = av_oformat_next(fmt)) != nullptr) {
+	//	RTC_LOG(LS_INFO) << "  " << fmt->name << " (" << fmt->long_name << ")";
+	//}
+}
+
 int32_t Recorder::Start(const std::string& path) {
-    const char* format_name = "matroska";
+	
+	printFFmpegInfo();
+
+    const char* format_name = "mp4";	// "matroska";
     avformat_alloc_output_context2(&context_, nullptr, format_name,
                                    path.c_str());
 	RTC_LOG(LS_INFO) << "Recorder::Start path: " << path;
@@ -63,6 +84,10 @@ int32_t Recorder::Start(const std::string& path) {
         RTC_LOG(LS_ERROR) << "Recorder::Start error, alloc context fail";
         return -11;
     }
+
+	// 添加这一行以启用MP4的分段写入模式
+	context_->flags |= AVFMT_FLAG_FLUSH_PACKETS;
+
     int res = avio_open(&context_->pb, context_->url, AVIO_FLAG_WRITE);
     if (res < 0) {
         RTC_LOG(LS_ERROR) << "Recorder::Start error, open fail "
@@ -368,6 +393,17 @@ void Recorder::openStreams() {
         if (video_codec_id == AV_CODEC_ID_H265) {
             par->codec_tag = 0x31637668;  // hvc1
         }
+
+		AVDictionary* opts = nullptr;
+		if (strcmp(context_->oformat->name, "mp4") == 0) {
+			av_dict_set(&opts, "movflags", "faststart", 0);
+			// 设置MP4的moov atom放在文件开头，便于流式播放
+			//context_->flags |= AVFMT_FLAG_FASTSTART;
+
+			// 如果是实时录制，可以考虑使用分段MP4
+			// 这会创建一个可以边录制边播放的MP4文件
+			context_->flags |= AVFMT_FLAG_AUTO_BSF;
+		}
 
         int res = avformat_write_header(context_, nullptr);
         if (res < 0) {
