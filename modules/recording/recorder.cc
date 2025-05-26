@@ -107,6 +107,8 @@ void Recorder::AddVideoFrame(const EncodedImage* frame,
         RTC_LOG(LS_INFO) << "Recorder::AddVideoFrame " << added_video_frames_
                          << " times";
     }
+	//RTC_LOG(LS_INFO) << "Recorder::AddVideoFrame " << added_video_frames_ << " times" << ",got_video_:"<<got_video_<<",frame->_frameType:"<<frame->_frameType<<",VideoFrameType::kVideoFrameKey:"<<VideoFrameType::kVideoFrameKey;
+
     if (!got_video_ && frame->_frameType == VideoFrameType::kVideoFrameKey) {
         got_video_ = true;
         video_codec_ = video_codec;
@@ -255,6 +257,7 @@ int Recorder::parseParamSets(int video_codec_id, const uint8_t* payload, uint32_
 }
 
 void Recorder::openStreams() {
+    //RTC_LOG(LS_INFO) << "Recorder::openStreams, got_audio_" << got_audio_ << ",got_video_:"<<got_video_<<",video_key_frame_:"<<video_key_frame_<<",stream_opened_:"<<stream_opened_<<",audio_codec_:"<<audio_codec_;
     if (got_audio_ && got_video_ && video_key_frame_ && !stream_opened_) {
         stream_opened_ = true;
 
@@ -317,12 +320,39 @@ void Recorder::openStreams() {
         }
         switch (audio_codec_id) {
             case AV_CODEC_ID_AAC:  // AudioSpecificConfig 48000-2
-                par->extradata_size = 2;
-                par->extradata = (uint8_t*)av_malloc(
-                    par->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
-                par->extradata[0] = 0x11;
-                par->extradata[1] = 0x90;
-                break;
+				{
+				//par->extradata_size = 2;
+                //par->extradata = (uint8_t*)av_malloc(
+                //    par->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
+                //par->extradata[0] = 0x11;
+                //par->extradata[1] = 0x90;
+                //break;
+				par->extradata_size = 2;
+				par->extradata = (uint8_t*)av_malloc(
+						par->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
+
+				// 动态生成 AudioSpecificConfig
+				uint8_t aot = 2;  // AAC-LC = 2
+				uint8_t sample_rate_index;
+				if (sample_rate_ == 16000) sample_rate_index = 8;
+				else if (sample_rate_ == 22050) sample_rate_index = 7;
+				else if (sample_rate_ == 24000) sample_rate_index = 6;
+				else if (sample_rate_ == 32000) sample_rate_index = 5;
+				else if (sample_rate_ == 44100) sample_rate_index = 4;
+				else if (sample_rate_ == 48000) sample_rate_index = 3;
+				else sample_rate_index = 15;  // 其他采样率使用显式方式
+
+				uint8_t channel_config = channel_num_;  // 1=单声道, 2=立体声
+
+				// 构建 AudioSpecificConfig
+				// 前 5 bits 是 AOT, 接下来 4 bits 是采样率索引
+				par->extradata[0] = (aot << 3) | ((sample_rate_index & 0x0E) >> 1);
+				// 采样率索引的最后一个 bit, 接下来 4 bits 是通道配置, 剩下的填 0
+				par->extradata[1] = ((sample_rate_index & 0x01) << 7) | (channel_config << 3);
+
+				memset(par->extradata + par->extradata_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+				}
+				break;
             case AV_CODEC_ID_OPUS:  // OpusHead 48000-2
                 par->extradata_size = 19;
                 par->extradata = (uint8_t*)av_malloc(
@@ -422,10 +452,17 @@ void Recorder::openStreams() {
 }
 
 void Recorder::drainFrames() {
-    openStreams();
+    //RTC_LOG(LS_INFO) << "Recorder::drainFrames first times";
+
+	openStreams();
 
     if (!audio_stream_ || !video_stream_) {
-        return;
+		while (!frames_.empty()) {
+			std::shared_ptr<Frame> frame = frames_.front();
+			frames_.pop();
+		}
+
+		return;
     }
 
     while (!frames_.empty()) {
